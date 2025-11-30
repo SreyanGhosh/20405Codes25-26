@@ -16,8 +16,8 @@ public class PedroAuton2 extends OpMode {
     public enum PathState {GO_LAUNCH1, SHOOT_PRELOAD}
     PathState pathState;
 
-    private final Pose startPose = new Pose(88, 135, Math.toRadians(180));
-    private final Pose launchPose = new Pose(148, 135, Math.toRadians(90));
+    private final Pose startPose = new Pose(81.20127795527158, 134.56869009584665, Math.toRadians(180));
+    private final Pose launchPose = new Pose(81.20127795527158, 78, Math.toRadians(45));
 
     private PathChain goLaunch;
 
