@@ -1,15 +1,16 @@
-package org.firstinspires.ftc.teamcode.teleop;
+package org.firstinspires.ftc.teamcode.teleop.cameratests;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.mechanisms.AprilTagWebcam;
+import org.firstinspires.ftc.teamcode.mechanisms.Webcam;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 @TeleOp(name = "AprilTagWebcamExample")
 public class AprilTagWebcamExample extends OpMode {
 
-    AprilTagWebcam aprilTagWebcam = new AprilTagWebcam();
+
+    Webcam aprilTagWebcam = new Webcam();
 
     @Override
     public void init() {
@@ -18,13 +19,16 @@ public class AprilTagWebcamExample extends OpMode {
 
     @Override
     public void loop() {
-        // update the vision portal
-        aprilTagWebcam.update();
-        AprilTagDetection id20 = aprilTagWebcam.getTagBySpecificId(20);
 
-        if (id20 != null) {
+
+        // updateFlywheel the vision portal
+        aprilTagWebcam.update();
+        AprilTagDetection id24 = aprilTagWebcam.getTagBySpecificId(24);
+        double distance = id24.ftcPose.range;
+
+        if (id24 != null) {
             telemetry.addLine("Tag FOUND");
-            telemetry.addData("id20 String", id20.toString());
+            aprilTagWebcam.displayDetectionTelemetry(id24);
 
         } else {
             telemetry.addLine("Tag NOT FOUND");

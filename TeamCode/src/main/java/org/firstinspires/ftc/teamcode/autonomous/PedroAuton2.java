@@ -5,10 +5,12 @@ import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.pedropathing.util.Timer;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
+@Autonomous(name = "PedroAuton2")
 public class PedroAuton2 extends OpMode {
 
     private Follower follower;
@@ -16,7 +18,7 @@ public class PedroAuton2 extends OpMode {
     public enum PathState {GO_LAUNCH1, SHOOT_PRELOAD}
     PathState pathState;
 
-    private final Pose startPose = new Pose(81.20127795527158, 134.56869009584665, Math.toRadians(180));
+    private final Pose startPose = new Pose(81.20127795527158, 134.56869009584665, Math.toRadians(90));
     private final Pose launchPose = new Pose(81.20127795527158, 78, Math.toRadians(45));
 
     private PathChain goLaunch;

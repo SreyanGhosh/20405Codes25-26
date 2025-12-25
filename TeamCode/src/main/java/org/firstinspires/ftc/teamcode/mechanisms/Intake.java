@@ -1,8 +1,7 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gamepad2;
-
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -24,39 +23,36 @@ public class Intake {
         // Launcher
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
 
-        // Brake behavior
         for (DcMotor m : new DcMotor[]{intakeMotor}) {
-            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         }
     }
 
-    public void update() {
-        if (gamepad2.a) {
-            intakeState = IntakeState.OFF;
-        } else if (gamepad2.right_trigger > 0.05) {
-            intakeState = IntakeState.INTAKE;
-        } else if (gamepad2.left_trigger > 0.05) {
-            intakeState = IntakeState.REVERSE;
+    public void runFor(double time) {
+        resetIntakeTimer();
+        if(intakeTimer.milliseconds() < time) {
+            intakeMotor.setPower(0.75);
         }
-        switch (intakeState) {
-            case OFF:
-                intakeMotor.setPower(0);
-                break;
-            case INTAKE:
-                intakeMotor.setPower(0.75);
-                break;
-            case REVERSE:
-                intakeMotor.setPower(-0.75);
-                break;
+        else {
+            off();
         }
 
     }
-    public void runIntake() {
+    public void run() {
         intakeMotor.setPower(0.75);
     }
 
-    public void stopIntake() {
+
+    public void off() {
         intakeMotor.setPower(0);
+    }
+
+    public void update(Gamepad gamepad2) {
+        if (gamepad2.right_bumper) {
+            run();
+        } else if(gamepad2.left_bumper) {
+            off();
+        }
     }
 
     public void resetIntakeTimer() {

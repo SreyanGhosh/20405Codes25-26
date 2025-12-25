@@ -15,7 +15,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AprilTagWebcam {
+public class Webcam {
 
     private AprilTagProcessor aprilTagProcessor;
     private VisionPortal visionPortal;
@@ -36,7 +36,7 @@ public class AprilTagWebcam {
 
         VisionPortal.Builder builder = new VisionPortal.Builder();
         builder.setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"));
-        builder.setCameraResolution(new Size(1280, 720));
+        builder.setCameraResolution(new Size(640, 480));
         builder.addProcessor(aprilTagProcessor);
 
         visionPortal = builder.build();

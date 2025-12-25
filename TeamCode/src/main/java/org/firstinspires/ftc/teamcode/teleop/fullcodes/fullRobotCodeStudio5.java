@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.teleop;
+package org.firstinspires.ftc.teamcode.teleop.fullcodes;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -8,15 +8,26 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
-@TeleOp(name = "fullRobotCodeStudio3")
-public class fullRobotCodeStudio3 extends LinearOpMode {
+import org.firstinspires.ftc.teamcode.mechanisms.Webcam;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+
+@TeleOp(name = "fullRobotCodeStudio5")
+public class fullRobotCodeStudio5 extends LinearOpMode {
+    // --- Camera ---
+    private static final double MIN_DISTANCE = 5;   // inches
+    private static final double MAX_DISTANCE = 350;   // inches
+    private static final double MIN_RPM = 750;
+    private static final double MAX_RPM = 3500;
+    private Webcam tagCam = new Webcam();
+    AprilTagDetection tag = null;
+
     // --- Hardware ---
     private DcMotor frontLeft, backLeft, frontRight, backRight;
     private DcMotorEx rightLauncherMotor, leftLauncherMotor;
     private DcMotor intakeMotor;
 
     private Servo transferServo;
-    private double servoInitPos = 0.67;
+    private double servoInitPos = 0.0;
     private boolean toggleState = false;
     private boolean lastButtonState = false;
 
@@ -41,25 +52,28 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
     // --- Intake States ---
 
     private IntakeState intakeState = IntakeState.OFF;
-    // --- Launcher Velocities (ticks per second) ---
-    // You will need to tune these based on your specific launcher motors/gearing
-    // --- Launcher Velocities (ticks per second) ---
-    // Adjust based on your gearbox ratio
     private static final double TICKS_PER_REV = 28; // Example: 25:1 gearbox
     private static final double RPM_TO_TICKS_PER_SEC = TICKS_PER_REV / 60.0;
     // Desired launcher wheel RPMs
-    private static double DEFAULT_RPM = 1355;
+    private static final double DEFAULT_RPM = 1359;
     private static double CURRENT_RPM = DEFAULT_RPM;
-    private static double RPM_INCREMENT = 50;
     // Converted to ticks per second
     private static final double LAUNCHER_OFF_VELOCITY = 0;
-    private static final double LAUNCHER_MIN_VELOCITY = 1355 * RPM_TO_TICKS_PER_SEC;
+    private static final double SAFETY_CONSTANT = 0.99;
+    private double launcherMinVelocity;
     private static double LAUNCHER_TARGET_VELOCITY = CURRENT_RPM * RPM_TO_TICKS_PER_SEC;
 
-    private ElapsedTime feederTimer = new ElapsedTime();
+    private ElapsedTime intakeTimer = new ElapsedTime();
+    private boolean intakeTimerStarted = false;
+    private ElapsedTime launcherTimer = new ElapsedTime();
+    private boolean launcherTimerStarted = false;
 
     @Override
     public void runOpMode() {
+
+        // Initialize Camera
+        tagCam.init(hardwareMap, telemetry);
+
         // Initialize hardware
         frontLeft = hardwareMap.dcMotor.get("frontLeft");
         backLeft = hardwareMap.dcMotor.get("backLeft");
@@ -67,15 +81,11 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
         backRight = hardwareMap.dcMotor.get("backRight");
 
         transferServo = hardwareMap.servo.get("transfer");
-        transferServo.setPosition(0.0); // Close Door
+        transferServo.setPosition(servoInitPos); // Close Door
 
         // Launcher Motors
         rightLauncherMotor = hardwareMap.get(DcMotorEx.class, "rightLauncherMotor");
         leftLauncherMotor = hardwareMap.get(DcMotorEx.class, "leftLauncherMotor");
-
-// Set directions
-        leftLauncherMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        rightLauncherMotor.setDirection(DcMotorSimple.Direction.REVERSE);
 
 // Brake behavior
         leftLauncherMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -106,35 +116,19 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
         leftLauncherMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightLauncherMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         telemetry.addLine("Initialized — Ready to start");
+
+        tagCam.init(hardwareMap, telemetry);
         telemetry.update();
 
         waitForStart();
         while (opModeIsActive()) {
             updateDrive();
-
-            boolean buttonState = gamepad2.b;
-
-            if (buttonState && !lastButtonState) {
-                toggleState = !toggleState;
-                transferServo.setPosition(toggleState ? 0.67 : 0.0); // Immediately set position to 1 or 0
-            }
-
-            lastButtonState = buttonState;
-
-
-            // Change the launcher RPM with the DPAD UP or DOWN by 50rpm value
-            if (gamepad2.dpad_up) {
-                CURRENT_RPM += RPM_INCREMENT;
-                LAUNCHER_TARGET_VELOCITY = CURRENT_RPM * RPM_TO_TICKS_PER_SEC;
-            } else if (gamepad2.dpad_down) {
-                CURRENT_RPM -= RPM_INCREMENT;
-                LAUNCHER_TARGET_VELOCITY = CURRENT_RPM * RPM_TO_TICKS_PER_SEC;
-            }
-            if (gamepad2.y) {
-                launcherState = LauncherState.REVERSE;
-            }
+            updateMinVelocity();
+            updateAprilTagDetector();
+            updateTransfer();
             updateLauncher();
             updateIntake();
+            updateReverse();
             updateTelemetry();
         }
     }
@@ -154,35 +148,59 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
         frontRight.setPower(frontRightPower);
         backRight.setPower(backRightPower);
     }
+
+    private void updateAprilTagDetector() {
+        tagCam.update();
+        AprilTagDetection currentTag = tagCam.getTagBySpecificId(20);
+
+        if (currentTag != null) {
+            tag = currentTag;  // store most recent valid tag
+            double distance = tag.ftcPose.range;
+            distance = Math.max(MIN_DISTANCE, Math.min(distance, MAX_DISTANCE));
+
+            double scale = (distance - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
+
+            // Update current rpm based on distance
+            CURRENT_RPM = MIN_RPM + (scale * (MAX_RPM - MIN_RPM));
+            LAUNCHER_TARGET_VELOCITY = CURRENT_RPM * RPM_TO_TICKS_PER_SEC;
+        } else {
+            // Don't change CURRENT_RPM or target velocity — keep last known values
+            telemetry.addLine("AprilTag Lost — Holding Last RPM");
+        }
+    }
+
+
+    // --- Transfer Servo Toggle Logic --
+    private void updateTransfer() {
+
+        boolean buttonState = gamepad2.b;
+
+        if (buttonState && !lastButtonState) {
+            toggleState = !toggleState;
+            transferServo.setPosition(toggleState ? 0.67 : 0.0); // Immediately set position to 1 or 0
+        }
+
+        lastButtonState = buttonState;
+    }
+
+    // --- Prevent Launcher Jamming ---
+    private void updateReverse() {
+        if (gamepad2.y) {
+            launcherState = LauncherState.REVERSE;
+        }
+    }
     // --- Launcher State Machine ---
     private void updateLauncher() {
 
-        // Launcher States
-        // 1. OFF - Default state where the launcher is not spinning.
-        //          When Gamepad2.left_bumper or Gamepad2.right_launcher is pressed, change to SPIN_WHEEL.
-        //          Use Gamepad2.left_bumper to launch 1 ball, and Gamepad2.right_launcher to launch 2 balls.
-        // 2. SPIN_WHEEL - Start spinning the launcher wheel and wait for it to reach a min. velocity.
-        //          Change to LAUNCH_FIRST when the launcher wheel reaches a min. velocity.
-        // 3. LAUNCH_FIRST - Start the intake motor, reset the feeder timer, and change to LAUNCHING state.
-        // 4. LAUNCHING - Wait for the feeder timer to reach 0.5 seconds. (This timer needs tweaking).
-        //          Stop the intake motor.
-        //          If second ball needs to be launched, change to LAUNCH_SECOND. Sleep for a time (time needs tweaking).
-        //          If no second ball needs to be launched, change to OFF.
-        // 5. LAUNCH_SECOND - Start the intake motor, reset the feeder timer, and change to LAUNCHING state.
-        // 6. LAUNCHING - Wait for the feeder timer to reach 0.5 seconds. (This timer needs tweaking).
-        //          Stop the intake motor. Change to OFF.
-        // 7. OFF
-
         switch (launcherState) {
             case REVERSE:
-                rightLauncherMotor.setPower(-0.2);
-                leftLauncherMotor.setPower(0.2);
-                sleep(1000);
-                rightLauncherMotor.setPower(0);
-                leftLauncherMotor.setPower(0);
-                intakeMotor.setPower(0);
-                transferServo.setPosition(0); // Close door
-                launcherState = LauncherState.OFF;
+                launcherTimer.reset();
+                if (launcherTimer.milliseconds() <= 1000) {
+                    rightLauncherMotor.setPower(-0.2);
+                    leftLauncherMotor.setPower(0.2);
+                } else if (launcherTimer.milliseconds() >= 1000) {
+                    launcherState = LauncherState.OFF;
+                }
                 break;
             case OFF:
                 if (gamepad2.left_bumper || gamepad2.right_bumper) {
@@ -196,37 +214,51 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
             case SPIN_WHEEL:
                 transferServo.setPosition(0.67); // Open door
                 setLauncherVelocity(LAUNCHER_TARGET_VELOCITY);
-                if (getLauncherVelocity() > LAUNCHER_TARGET_VELOCITY) {
+                if (getLauncherVelocity() > launcherMinVelocity) {
                     launcherState = LauncherState.LAUNCH;
                 }
                 break;
             case LAUNCH:
-                // Use the intake motors to bring the ball closer to the door
-                // Open the door & launch
-                // Close the door
-                // intakeMotor.setPower(0.75); sleep(100); intakeMotor.setPower(0);
-                intakeMotor.setPower(0.75);
-                sleep(100);
-                intakeMotor.setPower(0);
-                sleep(100);
-                transferServo.setPosition(0); // Close door
-                launcherState = LauncherState.PREP_NEXT;
+                if (!intakeTimerStarted) {
+                    intakeTimer.reset();
+                    intakeTimerStarted = true;
+                }
+
+                if (intakeTimer.milliseconds() < 100) {
+                    intakeMotor.setPower(0.75); // feed ring
+                } else if (intakeTimer.milliseconds() < 150) {
+                    intakeMotor.setPower(0);
+                    transferServo.setPosition(0); // close flap
+                } else {
+                    intakeTimerStarted = false;
+                    launcherState = LauncherState.PREP_NEXT;
+                }
                 break;
             case PREP_NEXT:
-                if (numOfBallsToLaunch > 1) {      // Wait and launch the next ball
-                    sleep(100);
-                    numOfBallsToLaunch--;
-                    launcherState = LauncherState.LAUNCH;
-                } else {
-                    launcherState = LauncherState.OFF;
-                    setLauncherVelocity(LAUNCHER_OFF_VELOCITY);
+                if (!launcherTimerStarted) {
+                    launcherTimer.reset();
+                    launcherTimerStarted = true;
+                }
+
+                if (launcherTimer.milliseconds() >= 200) { // wait before next feed
+                    launcherTimerStarted = false;
+                    if (numOfBallsToLaunch > 1) {
+                        numOfBallsToLaunch--;
+                        launcherState = LauncherState.LAUNCH;
+                    } else {
+                        setLauncherVelocity(LAUNCHER_OFF_VELOCITY);
+                        launcherState = LauncherState.OFF;
+                    }
                 }
                 break;
         }
     }
     private void setLauncherVelocity(double ticksPerSecond) {
         rightLauncherMotor.setVelocity(ticksPerSecond);
-        leftLauncherMotor.setVelocity(ticksPerSecond * 1.05567);
+        leftLauncherMotor.setVelocity(ticksPerSecond);
+    }
+    private void updateMinVelocity() {
+        launcherMinVelocity = LAUNCHER_TARGET_VELOCITY * SAFETY_CONSTANT;
     }
 
     // Returns the average velocity of the launcher wheels in ticks per second
@@ -258,12 +290,17 @@ public class fullRobotCodeStudio3 extends LinearOpMode {
     }
     // --- Telemetry ---
     private void updateTelemetry() {
+
+        if (tag != null) {
+            telemetry.addData("Distance to Tag", tag.ftcPose.range);
+        }
         telemetry.addData("Launcher State", launcherState);
         telemetry.addData("Intake State", intakeState);
         telemetry.addData("Left Launcher Velocity", leftLauncherMotor.getVelocity());
         telemetry.addData("Right Launcher Velocity", rightLauncherMotor.getVelocity());
         telemetry.addData("Intake Power", intakeMotor.getPower());
         telemetry.addData("Target RPM", LAUNCHER_TARGET_VELOCITY);
+        telemetry.addData("Auto RPM", CURRENT_RPM);
         telemetry.update();
     }
 }

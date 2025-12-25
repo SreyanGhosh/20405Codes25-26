@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.gamepad2;
 
+import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -12,17 +12,19 @@ public class Stopper {
     private boolean toggleState = false;
     private boolean lastButtonState = false;
 
-    public void init(HardwareMap hardwareMap) {
+    public Stopper(HardwareMap hardwareMap) {
         transferServo = hardwareMap.servo.get("transfer");
         transferServo.setPosition(servoInitPos); // Close Door
     }
 
-    public void update() {
+    public void updateStopper(Gamepad gamepad1, Gamepad gamepad2) {
         boolean buttonState = gamepad2.b;
 
         if (buttonState && !lastButtonState) {
             toggleState = !toggleState;
             transferServo.setPosition(toggleState ? 0.67 : 0.0); // Immediately set position to 1 or 0
+        } else if (gamepad1.y) {
+            transferServo.setPosition(0.5);
         }
 
         lastButtonState = buttonState;
