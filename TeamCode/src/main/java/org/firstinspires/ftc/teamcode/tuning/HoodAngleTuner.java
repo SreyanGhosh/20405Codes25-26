@@ -1,12 +1,14 @@
 package org.firstinspires.ftc.teamcode.tuning;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.teamcode.mechanisms.Flywheel;
 import org.firstinspires.ftc.teamcode.mechanisms.Webcam;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
+@TeleOp(name = "HoodAngleTuner")
 public class HoodAngleTuner extends OpMode {
 
     Flywheel flywheel = new Flywheel();
@@ -34,6 +36,12 @@ public class HoodAngleTuner extends OpMode {
         }
 
         hood.setPosition(hoodPos);
+
+        if (gamepad1.right_trigger > 0.05) {
+            flywheel.runFor(3000, 6);
+        } else if (gamepad1.left_trigger > 0.05) {
+            flywheel.setVelocity(0);
+        }
 
         if (gamepad1.dpad_up) {
             hoodPos += 0.1;

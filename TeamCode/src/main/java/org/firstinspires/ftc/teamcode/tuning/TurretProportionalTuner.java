@@ -8,7 +8,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.teamcode.mechanisms.Webcam;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
-@TeleOp(name = "AprilTag Smooth 3D Tracker")
+@TeleOp(name = "TurretProportionalTuner")
 public class TurretProportionalTuner extends OpMode {
 
     // Vision
@@ -25,14 +25,10 @@ public class TurretProportionalTuner extends OpMode {
     private static final double SERVO_MIN = 0.0;
     private static final double SERVO_MAX = 1.0;
 
-    // Gain: How aggressively to move toward the error
-    private double kP = 0.005;
+    private double kP = 0.000;
 
-    // Smoothness: Maximum change in servo position per loop cycle
-    // Increase this (e.g., 0.005) for faster tracking, decrease for smoother cinematic movement
-    private static final double MAX_STEP = 0.002;
+    private double MAX_STEP = 1.000;
 
-    // Ignore tiny errors (Radians)
     private static final double DEADBAND_RAD = Math.toRadians(1.5);
 
     @Override
@@ -55,9 +51,14 @@ public class TurretProportionalTuner extends OpMode {
             kP -= 0.0005;
         }
 
+        if (gamepad1.y) {
+            MAX_STEP += 0.001;
+        } else if (gamepad1.a) {
+            MAX_STEP -= 0.001;
+        }
+
         if (tag != null) {
-            // Your robust math: Aiming at a point in 3D space
-            // This works even when the tag is rotated or the robot strafes
+
             double x = tag.ftcPose.x;
             double z = tag.ftcPose.z;
             double yawError = Math.atan2(x, z);
@@ -68,8 +69,6 @@ public class TurretProportionalTuner extends OpMode {
                 servoPos += clampedDelta;
             }
 
-
-            // Keep within physical servo limits
             servoPos = clamp(servoPos, SERVO_MIN, SERVO_MAX);
             cameraServo.setPosition(servoPos);
 
@@ -83,11 +82,10 @@ public class TurretProportionalTuner extends OpMode {
             telemetry.addLine("STATUS: Tag Lost - Holding last position");
         }
 
-        telemetry.addData("kP", kP);
+        telemetry.addData("Proportional", kP);
+        telemetry.addData("Max Step", MAX_STEP);
         telemetry.update();
     }
-
-    // Helper to keep values in range
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }

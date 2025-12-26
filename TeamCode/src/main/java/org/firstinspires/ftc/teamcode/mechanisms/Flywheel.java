@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 public class Flywheel {
 
@@ -24,6 +25,7 @@ public class Flywheel {
 
     private double targetVelocity = DEFAULT_VELOCITY;
     private boolean hasSeenTag = false;
+    private ElapsedTime timer = new ElapsedTime();
 
 
     public void init(HardwareMap hardwareMap) {
@@ -61,6 +63,13 @@ public class Flywheel {
         flywheel.setVelocity(targetVelocity);
     }
 
+    public void runFor(double velocity, double time) {
+        timer.reset();
+        if (timer.seconds() < time) {
+            flywheel.setVelocity(velocity);
+        }
+    }
+
 
     public double getVelocity() {
         return flywheel.getVelocity();
@@ -73,6 +82,7 @@ public class Flywheel {
     public boolean atSpeed(double target, double tolerance) {
         return Math.abs(getVelocity() - target) <= tolerance;
     }
+
 
 
 }

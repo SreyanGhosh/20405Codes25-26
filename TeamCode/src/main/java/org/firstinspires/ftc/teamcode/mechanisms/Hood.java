@@ -8,15 +8,16 @@ public class Hood {
     private Servo hoodServo;
 
     private double hoodPos = 0.5;
+    private boolean hasSeenDistance = false;
 
     private static final double SERVO_MIN = 0.0;
     private static final double SERVO_MAX = 1.0;
-    private static final double k = 0.01; // linear factor
 
-    private boolean hasSeenDistance = false;
+    // UPDATE THESE VALUES
 
-    private static final double m = -0.015;
-    private static final double b = 0.65;
+    private static final double kA = -0.015;
+    private static final double kB = 0.65;
+    private static final double kC = 0;
 
 
 
@@ -28,7 +29,7 @@ public class Hood {
     public void update(double distance, boolean hasTag) {
         if (hasTag) {
             // Compute hood position based on distance
-            hoodPos = clamp(k * distance, SERVO_MIN, SERVO_MAX);
+            hoodPos = clamp((kA * distance * distance) + kB * distance + kC, SERVO_MIN, SERVO_MAX);
             hasSeenDistance = true;
         }
         // Else: keep hoodPos the same (hold last position)
