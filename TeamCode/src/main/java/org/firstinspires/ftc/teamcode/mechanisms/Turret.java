@@ -1,40 +1,97 @@
 package org.firstinspires.ftc.teamcode.mechanisms;
 
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.Servo;
 
-
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 
 public class Turret {
 
-    private Servo cameraServo;
+    // ==== CONFIG ====
+    private static final int TARGET_TAG_ID = 24;
+    private static final double FRAME_WIDTH = 640.0;
 
-    private double servoPos = 0.5;
+    // Control tuning
+    private static final double kP = 1.2;
+    private static final double kD = 0.08;
+    private static final double AIM_TOLERANCE = 0.03;
 
-    private static final double SERVO_MIN = 0.0;
-    private static final double SERVO_MAX = 1.0;
-    private static final double kP = 0.005;
-    private static final double MAX_STEP = 0.002;
-    private static final double DEADBAND_RAD = Math.toRadians(1.5);
+    // CR Servo limits
+    private static final double MAX_POWER = 0.6;
+    private static final double MIN_POWER = 0.1;
 
-    public void init(HardwareMap hardwareMap) {
-        cameraServo = hardwareMap.get(Servo.class, "cameraServo");
-        cameraServo.setPosition(servoPos);
+    // ==== HARDWARE ====
+    private final CRServo turret;
+
+    // ==== STATE ====
+    private final Webcam webcam;
+
+    private double lastError = 0;
+    private double aimError = 0;
+    private boolean tagDetected = false;
+    private double distanceFromTag = 0;
+
+    public Turret(HardwareMap hardwareMap, Webcam webcam) {
+        this.webcam = webcam;
+        turret = hardwareMap.get(CRServo.class, "turret");
+        turret.setPower(0);
     }
 
-    public void update(double yawErrorRad) {
+    // Same role as their periodic()
+    public void update() {
+        AprilTagDetection tag = webcam.getTagBySpecificId(TARGET_TAG_ID);
 
-        if (Math.abs(yawErrorRad) > DEADBAND_RAD) {
-            double desiredDelta = yawErrorRad * kP;
-            double clampedDelta = clamp(desiredDelta, -MAX_STEP, MAX_STEP);
-            servoPos += clampedDelta;
+        if (tag == null) {
+            tagDetected = false;
+            return;
         }
 
-        servoPos = clamp(servoPos, SERVO_MIN, SERVO_MAX);
-        cameraServo.setPosition(servoPos);
+        tagDetected = true;
+        distanceFromTag = tag.ftcPose.range;
+
+        aimError = (tag.center.x - FRAME_WIDTH / 2) / (FRAME_WIDTH / 2);
     }
 
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
+    // Same role as their autoAim()
+    public boolean autoAim() {
+        if (!tagDetected) {
+            turret.setPower(0);
+            return false;
+        }
+
+        if (Math.abs(aimError) < AIM_TOLERANCE) {
+            turret.setPower(0);
+            return true;
+        }
+
+        double derivative = aimError - lastError;
+        double output = kP * aimError + kD * derivative;
+
+        output = clamp(output, -MAX_POWER, MAX_POWER);
+
+        if (Math.abs(output) < MIN_POWER) {
+            output = Math.signum(output) * MIN_POWER;
+        }
+
+        turret.setPower(-output);
+
+        lastError = aimError;
+        return false;
+    }
+
+    public double getDistance() {
+        return distanceFromTag;
+    }
+
+    public boolean isAimed() {
+        return Math.abs(aimError) < AIM_TOLERANCE;
+    }
+
+    public boolean hasTarget() {
+        return tagDetected;
+    }
+
+    private double clamp(double val, double min, double max) {
+        return Math.max(min, Math.min(max, val));
     }
 }

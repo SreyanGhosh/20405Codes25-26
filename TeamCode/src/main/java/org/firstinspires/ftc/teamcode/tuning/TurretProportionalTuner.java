@@ -25,11 +25,16 @@ public class TurretProportionalTuner extends OpMode {
     private static final double SERVO_MIN = 0.0;
     private static final double SERVO_MAX = 1.0;
 
-    private double kP = 0.000;
+    private double kP = 0.0067;
 
-    private double MAX_STEP = 1.000;
+    private double MAX_STEP = 0.0015;
+    private double kD = 0.015;          // Damping
+    private double filteredYaw = 0.0;
+    private double filterAlpha = 0.12;   // 0–1 (higher = more responsive)
+    private double lastError = 0.0;
 
-    private static final double DEADBAND_RAD = Math.toRadians(1.5);
+
+    private static final double DEADBAND_RAD = Math.toRadians(2);
 
     @Override
     public void init() {
@@ -52,28 +57,49 @@ public class TurretProportionalTuner extends OpMode {
         }
 
         if (gamepad1.y) {
-            MAX_STEP += 0.001;
+            MAX_STEP += 0.0005;
         } else if (gamepad1.a) {
-            MAX_STEP -= 0.001;
+            MAX_STEP -= 0.0005;
         }
+
+        if(gamepad1.right_bumper) {
+            kD += 0.003;
+        } else if (gamepad1.left_bumper) {
+            kD -= 0.003;
+        }
+
+
 
         if (tag != null) {
 
             double x = tag.ftcPose.x;
             double z = tag.ftcPose.z;
-            double yawError = Math.atan2(x, z);
+            double rawYaw = Math.atan2(x, z);
 
-            if (Math.abs(yawError) > DEADBAND_RAD) {
-                double desiredDelta = yawError * kP;
-                double clampedDelta = clamp(desiredDelta, -MAX_STEP, MAX_STEP);
-                servoPos += clampedDelta;
+// ----- Low-pass filter vision noise -----
+            filteredYaw = filteredYaw * (1 - filterAlpha) + rawYaw * filterAlpha;
+
+            double error = filteredYaw;
+            double derivative = error - lastError;
+
+// ----- PD Control -----
+            double correction = kP * error + kD * derivative;
+
+// Step limiting for safety
+            correction = clamp(correction, -MAX_STEP, MAX_STEP);
+
+            if (Math.abs(error) > DEADBAND_RAD) {
+                servoPos -= correction;
             }
+
+            lastError = error;
+
 
             servoPos = clamp(servoPos, SERVO_MIN, SERVO_MAX);
             cameraServo.setPosition(servoPos);
 
             telemetry.addLine("STATUS: Tag Locked");
-            telemetry.addData("Yaw Error (deg)", Math.toDegrees(yawError));
+            telemetry.addData("Yaw Error (deg)", Math.toDegrees(rawYaw));
             telemetry.addData("Servo Pos", "%.3f", servoPos);
 
         } else {
@@ -84,6 +110,7 @@ public class TurretProportionalTuner extends OpMode {
 
         telemetry.addData("Proportional", kP);
         telemetry.addData("Max Step", MAX_STEP);
+        telemetry.addData("kD", kD);
         telemetry.update();
     }
     private double clamp(double value, double min, double max) {

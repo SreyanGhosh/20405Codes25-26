@@ -65,6 +65,7 @@ public class PedroAuton1 extends OpMode {
 
         transferServo.setPosition(0.67);
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
         follower = Constants.createFollower(hardwareMap);

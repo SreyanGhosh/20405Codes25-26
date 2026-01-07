@@ -11,7 +11,7 @@ public class FullRobotCode6 extends OpMode {
     Flywheel flywheel = new Flywheel();
     Intake intake = new Intake();
     Kicker kicker = new Kicker();
-    Turret turret = new Turret();
+    Turret turret;
     Hood hood = new Hood();
     Webcam webcam = new Webcam();
 
@@ -28,7 +28,7 @@ public class FullRobotCode6 extends OpMode {
         flywheel.init(hardwareMap);
         intake.init(hardwareMap);
         kicker.init(hardwareMap);
-        turret.init(hardwareMap);
+        turret = new Turret(hardwareMap, webcam);
         hood.init(hardwareMap);
         webcam.init(hardwareMap, telemetry);
     }
@@ -39,14 +39,18 @@ public class FullRobotCode6 extends OpMode {
         drivetrain.update(gamepad1);
         intake.update(gamepad2);
 
-        // ===== Vision =====
+        // ===== Vision first =====
         webcam.update();
         AprilTagDetection tag = webcam.getTagBySpecificId(TARGET_ID);
+
+        // Update turret
+        turret.update();    // reads latest tag info
+        turret.autoAim();   // drive CR servo
 
         boolean hasTag = (tag != null);
         double distance = hasTag ? tag.ftcPose.range : 0;
 
-        // Flywheel updates internally
+        // Flywheel updates
         flywheel.updateFromDistance(distance, hasTag);
 
         // Request shooting
@@ -62,14 +66,14 @@ public class FullRobotCode6 extends OpMode {
 
         hood.update(distance, hasTag);
 
-
-        // Kicker update
         kicker.update();
 
         // ===== Telemetry =====
         telemetry.addData("Target Velocity", flywheel.getTargetVelocity());
         telemetry.addData("Flywheel Velocity", flywheel.getVelocity());
         telemetry.addData("Kicker Busy", kicker.isBusy());
+        telemetry.addData("Turret Has Tag", turret.hasTarget());
+        telemetry.addData("Turret Aimed", turret.isAimed());
         telemetry.update();
     }
 

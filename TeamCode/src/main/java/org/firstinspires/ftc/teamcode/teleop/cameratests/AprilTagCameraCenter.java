@@ -24,10 +24,10 @@ public class AprilTagCameraCenter extends OpMode {
     private static final double SERVO_MAX = 1.0;
 
     // Gain: servo change per radian
-    private static final double kP = 0.35;
+    private double kP = 0.03;
 
     // Ignore tiny errors
-    private static final double DEADBAND_RAD = Math.toRadians(0.5);
+    private static final double DEADBAND_RAD = Math.toRadians(1);
 
     // Tag to track
     private static final int TARGET_TAG_ID = 24;
@@ -76,6 +76,8 @@ public class AprilTagCameraCenter extends OpMode {
 
         telemetry.update();
     }
+
+
 
     @Override
     public void stop() {
