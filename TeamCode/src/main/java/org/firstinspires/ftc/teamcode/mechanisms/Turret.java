@@ -16,6 +16,7 @@ public class Turret {
     private static final double kD = 0.08;
     private static final double AIM_TOLERANCE = 0.03;
 
+
     // CR Servo limits
     private static final double MAX_POWER = 0.6;
     private static final double MIN_POWER = 0.1;
