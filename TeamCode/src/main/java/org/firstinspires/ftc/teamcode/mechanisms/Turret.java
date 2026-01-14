@@ -8,18 +8,18 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 public class Turret {
 
     // ==== CONFIG ====
-    private static final int TARGET_TAG_ID = 24;
+    private static final int TARGET_TAG_ID = 22;
     private static final double FRAME_WIDTH = 640.0;
 
     // Control tuning
-    private static final double kP = 1.2;
-    private static final double kD = 0.08;
+    private static final double kP = 1.20;
+    private static final double kD = 0.00;
     private static final double AIM_TOLERANCE = 0.03;
 
 
     // CR Servo limits
-    private static final double MAX_POWER = 0.6;
-    private static final double MIN_POWER = 0.1;
+    private static final double MAX_POWER = 1.0;
+    private static final double MIN_POWER = 1.0;
 
     // ==== HARDWARE ====
     private final CRServo turret;

@@ -30,7 +30,7 @@ public class AprilTagCameraCenter extends OpMode {
     private static final double DEADBAND_RAD = Math.toRadians(1);
 
     // Tag to track
-    private static final int TARGET_TAG_ID = 24;
+    private static final int TARGET_TAG_ID = 22;
 
     @Override
     public void init() {
