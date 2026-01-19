@@ -8,7 +8,7 @@ import org.firstinspires.ftc.teamcode.mechanisms.*;
 @TeleOp(name = "Main TeleOp")
 public class MainTeleOp extends OpMode {
 
-    Drivetrain drivetrain = new Drivetrain();
+    RobotCentric drivetrain = new RobotCentric();
     Flywheel flywheel = new Flywheel();
     Intake intake = new Intake();
     Kicker kicker = new Kicker();
@@ -35,7 +35,7 @@ public class MainTeleOp extends OpMode {
     @Override
     public void loop() {
 
-        drivetrain.update(gamepad1);
+        drivetrain.updateDrive(gamepad1);
 
         // === B1: Toggle Intake ===
         if (gamepad2.a && !lastB1) {
